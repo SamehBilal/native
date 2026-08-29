@@ -46,22 +46,38 @@ class MarketplaceApi
             'device_name' => 'nativephp-mobile',
         ], authenticated: false);
 
-        if ($result['ok']) {
-            $this->rememberSession($result['data']);
-        }
-
-        return $result;
+        return $result['ok'] ? $this->finalizeSession($result) : $result;
     }
 
     public function register(array $payload): array
     {
         $result = $this->request('post', '/register', $payload, authenticated: false);
 
-        if ($result['ok']) {
-            $this->rememberSession($result['data']);
+        return $result['ok'] ? $this->finalizeSession($result) : $result;
+    }
+
+    /**
+     * @param  array{ok: bool, status: int, data: array<string, mixed>, message: string|null}  $result
+     * @return array{ok: bool, status: int, data: array<string, mixed>, message: string|null}
+     */
+    protected function finalizeSession(array $result): array
+    {
+        if ($this->rememberSession($result['data'])) {
+            return $result;
         }
 
-        return $result;
+        // The API call succeeded, but the device could not persist the
+        // session (e.g. an Android emulator without a lock-screen PIN
+        // rejects hardware-backed Keystore writes). Without this check the
+        // caller would navigate on to a screen that immediately bounces
+        // back to a blank login form, which looks like the tap did nothing.
+        return [
+            'ok' => false,
+            'status' => $result['status'],
+            'data' => $result['data'],
+            'message' => 'Signed in, but this device could not save your session. '.
+                'If you are using an emulator, set a screen lock (PIN or pattern) on it and try again.',
+        ];
     }
 
     public function logout(): void
@@ -154,10 +170,12 @@ class MarketplaceApi
         ]);
     }
 
-    protected function rememberSession(array $data): void
+    protected function rememberSession(array $data): bool
     {
-        SecureStorage::set('auth_token', $data['token']);
-        SecureStorage::set('auth_user', json_encode($data['user']));
+        $tokenSaved = SecureStorage::set('auth_token', $data['token']);
+        $userSaved = SecureStorage::set('auth_user', json_encode($data['user']));
+
+        return $tokenSaved && $userSaved && $this->token() === $data['token'];
     }
 
     protected function client(bool $authenticated): PendingRequest
