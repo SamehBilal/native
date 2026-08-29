@@ -62,21 +62,21 @@ class MarketplaceApi
      */
     protected function finalizeSession(array $result): array
     {
-        if ($this->rememberSession($result['data'])) {
+        $failureReason = $this->storeSession($result['data']);
+
+        if ($failureReason === null) {
             return $result;
         }
 
         // The API call succeeded, but the device could not persist the
-        // session (e.g. an Android emulator without a lock-screen PIN
-        // rejects hardware-backed Keystore writes). Without this check the
-        // caller would navigate on to a screen that immediately bounces
-        // back to a blank login form, which looks like the tap did nothing.
+        // session. Without this check the caller would navigate on to a
+        // screen that immediately bounces back to a blank login form, which
+        // looks like the tap did nothing.
         return [
             'ok' => false,
             'status' => $result['status'],
             'data' => $result['data'],
-            'message' => 'Signed in, but this device could not save your session. '.
-                'If you are using an emulator, set a screen lock (PIN or pattern) on it and try again.',
+            'message' => $failureReason,
         ];
     }
 
@@ -170,12 +170,37 @@ class MarketplaceApi
         ]);
     }
 
-    protected function rememberSession(array $data): bool
+    /**
+     * Persist the session, then read it straight back through SecureStorage
+     * to confirm it actually round-tripped rather than trusting a bare
+     * success flag from the write.
+     *
+     * @param  array{token: string, user: array<string, mixed>}  $data
+     * @return string|null A human-readable failure reason, or null on success.
+     */
+    protected function storeSession(array $data): ?string
     {
         $tokenSaved = SecureStorage::set('auth_token', $data['token']);
         $userSaved = SecureStorage::set('auth_user', json_encode($data['user']));
 
-        return $tokenSaved && $userSaved && $this->token() === $data['token'];
+        if (! $tokenSaved || ! $userSaved) {
+            return 'Signed in, but this device rejected saving your session (SecureStorage write failed). '.
+                'If you are using an emulator, make sure a screen lock (PIN or pattern) is set, then try again.';
+        }
+
+        $readBack = SecureStorage::read('auth_token');
+
+        if ($readBack->found() && $readBack->value === $data['token']) {
+            return null;
+        }
+
+        return match (true) {
+            $readBack->unavailable() => 'Signed in, but your device is locked and cannot decrypt the saved session yet. Unlock your device and try again.',
+            $readBack->missing() => 'Signed in, but the session was not actually saved on this device. Please try again.',
+            default => 'Signed in, but could not verify the saved session'
+                .($readBack->code ? " [{$readBack->code}]" : '')
+                .($readBack->message ? ": {$readBack->message}" : '').'.',
+        };
     }
 
     protected function client(bool $authenticated): PendingRequest
