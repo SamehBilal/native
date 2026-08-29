@@ -23,7 +23,7 @@ test('bidding on a walk-in request auto-accepts and is immediately trackable wit
         'request' => ['id' => 9001, 'service_type' => 'tire_exchange', 'description' => 'test', 'distance_km' => 2.2],
     ]);
 
-    $test->set('fee', '55')->set('etaMinutes', '12')->call('submit');
+    $test->set('feeIndex', 1)->set('etaIndex', 1)->call('submit');
 
     expect($test->instance()->submitted)->toBeTrue();
 

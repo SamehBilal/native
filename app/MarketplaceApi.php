@@ -155,6 +155,7 @@ class MarketplaceApi
         $id = $this->nextId('request');
         $now = microtime(true);
         $providers = $this->providersFor($data['service_type'])->shuffle();
+        $budget = isset($data['budget']) ? (int) $data['budget'] : null;
 
         $requests = $this->requests();
         $requests[$id] = [
@@ -162,6 +163,7 @@ class MarketplaceApi
             'customer' => $this->currentUser() ?? self::DEMO_USERS['customer'],
             'service_type' => $data['service_type'],
             'description' => $data['description'] ?? null,
+            'budget' => $budget,
             'pickup_latitude' => $data['pickup_latitude'],
             'pickup_longitude' => $data['pickup_longitude'],
             'status' => 'pending',
@@ -175,11 +177,32 @@ class MarketplaceApi
                 provider: $provider,
                 serviceType: $data['service_type'],
                 revealAt: $now + 4 + $index * 5,
+                budget: $budget,
             ))->all(),
         ];
         $this->saveRequests($requests);
 
         return $this->ok(['id' => $id]);
+    }
+
+    /**
+     * Cancel a still-pending request. Only the requester can meaningfully do
+     * this in the real app; the demo doesn't check that since there's only
+     * ever one demo customer.
+     */
+    public function cancelRequest(int $requestId): array
+    {
+        $requests = $this->requests();
+        $request = $requests[$requestId] ?? null;
+
+        if ($request === null) {
+            return $this->fail(404, 'Request not found.');
+        }
+
+        $requests[$requestId]['status'] = 'cancelled';
+        $this->saveRequests($requests);
+
+        return $this->ok([]);
     }
 
     /**
@@ -201,6 +224,7 @@ class MarketplaceApi
         return $this->ok([
             'status' => $request['status'],
             'service_type' => $request['service_type'],
+            'budget' => $request['budget'] ?? null,
             'offers' => $this->visibleOffers($request),
             'customer' => $request['customer'],
             'accepted_provider' => $request['accepted_provider'],
@@ -352,6 +376,7 @@ class MarketplaceApi
                 'id' => $request['id'],
                 'service_type' => $request['service_type'],
                 'description' => $request['description'],
+                'budget' => $request['budget'] ?? null,
                 'distance_km' => $request['distance_km'] ?? round(1.5 + ($request['id'] % 5) * 0.7, 1),
             ])
             ->values()
@@ -476,14 +501,23 @@ class MarketplaceApi
     /**
      * @param  array{id: int, name: string, vehicle_info: string, rating: float, phone: string}  $provider
      */
-    protected function makeOffer(array $provider, string $serviceType, float $revealAt): array
+    protected function makeOffer(array $provider, string $serviceType, float $revealAt, ?int $budget = null): array
     {
         $isTow = $serviceType === 'emergency_tow';
+        [$min, $max] = $isTow ? [90, 150] : [45, 70];
+
+        // A stated budget nudges providers to bid near it (±10%) instead of
+        // the plain default range, so picking a budget visibly shapes the
+        // offers that come back — clamped to a sane floor either way.
+        if ($budget !== null) {
+            $min = max(20, (int) round($budget * 0.9));
+            $max = max($min + 5, (int) round($budget * 1.1));
+        }
 
         return [
             'id' => $this->nextId('offer'),
             'provider' => $provider,
-            'fee' => $isTow ? random_int(90, 150) : random_int(45, 70),
+            'fee' => random_int($min, $max),
             'eta_minutes' => $isTow ? random_int(15, 30) : random_int(8, 20),
             'message' => null,
             'status' => 'pending',

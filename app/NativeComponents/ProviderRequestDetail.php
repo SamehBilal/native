@@ -9,15 +9,34 @@ use Native\Mobile\Edge\NativeComponent;
 
 class ProviderRequestDetail extends NativeComponent
 {
+    /**
+     * Fee presets, tailored per service type — tapped instead of typed.
+     *
+     * @var array<string, list<int>>
+     */
+    const FEE_VALUES = [
+        'tire_exchange' => [40, 50, 60, 70, 80],
+        'emergency_tow' => [80, 100, 120, 150],
+    ];
+
+    /** @var list<int> */
+    const ETA_VALUES = [10, 15, 20, 30];
+
+    /** @var list<string|null> */
+    const MESSAGE_VALUES = [null, 'On my way!', "I'm nearby.", 'I have extra parts ready just in case.'];
+
+    /** @var list<string> */
+    const MESSAGE_LABELS = ['No message', 'On my way!', "I'm nearby", 'Extra parts ready'];
+
     public int $requestId = 0;
 
     public array $request = [];
 
-    public string $fee = '';
+    public int $feeIndex = 1;
 
-    public string $etaMinutes = '';
+    public int $etaIndex = 1;
 
-    public string $message = '';
+    public int $messageIndex = 0;
 
     public bool $submitting = false;
 
@@ -40,19 +59,12 @@ class ProviderRequestDetail extends NativeComponent
     public function submit(): void
     {
         $this->error = null;
-
-        if ($this->fee === '' || $this->etaMinutes === '') {
-            $this->error = 'Enter your fee and estimated arrival time.';
-
-            return;
-        }
-
         $this->submitting = true;
 
         $result = app(MarketplaceApi::class)->submitOffer($this->requestId, [
-            'fee' => (float) $this->fee,
-            'eta_minutes' => (int) $this->etaMinutes,
-            'message' => $this->message !== '' ? $this->message : null,
+            'fee' => $this->feeValues()[$this->feeIndex],
+            'eta_minutes' => self::ETA_VALUES[$this->etaIndex],
+            'message' => self::MESSAGE_VALUES[$this->messageIndex],
         ]);
 
         $this->submitting = false;
@@ -64,6 +76,12 @@ class ProviderRequestDetail extends NativeComponent
         }
 
         $this->submitted = true;
+    }
+
+    /** @return list<int> */
+    public function feeValues(): array
+    {
+        return self::FEE_VALUES[$this->request['service_type'] ?? 'tire_exchange'] ?? self::FEE_VALUES['tire_exchange'];
     }
 
     #[Poll(5000)]
@@ -95,6 +113,10 @@ class ProviderRequestDetail extends NativeComponent
 
     public function render(): View
     {
-        return view('native.provider-request-detail');
+        return view('native.provider-request-detail', [
+            'feeLabels' => array_map(fn (int $fee) => "\${$fee}", $this->feeValues()),
+            'etaLabels' => array_map(fn (int $min) => "{$min} min", self::ETA_VALUES),
+            'messageLabels' => self::MESSAGE_LABELS,
+        ]);
     }
 }

@@ -19,9 +19,20 @@
                 <native:button label="Back to requests" @tap="backToDashboard" class="w-full mt-2" />
             </native:column>
         @else
-            <native:outlined-text-input placeholder="Your fee (e.g. 60)" keyboard="decimal" native:model="fee" class="w-full" />
-            <native:outlined-text-input placeholder="ETA in minutes (e.g. 15)" keyboard="number" native:model="etaMinutes" class="w-full" />
-            <native:outlined-text-input placeholder="Message to the customer (optional)" native:model="message" class="w-full" />
+            <native:column class="w-full gap-2">
+                <native:text class="text-gray-500">Your fee</native:text>
+                <native:button-group :options="$feeLabels" native:model="feeIndex" class="w-full" />
+            </native:column>
+
+            <native:column class="w-full gap-2">
+                <native:text class="text-gray-500">Estimated arrival</native:text>
+                <native:button-group :options="$etaLabels" native:model="etaIndex" class="w-full" />
+            </native:column>
+
+            <native:column class="w-full gap-2">
+                <native:text class="text-gray-500">Message (optional)</native:text>
+                <native:button-group :options="$messageLabels" native:model="messageIndex" class="w-full" />
+            </native:column>
 
             @if ($error)
                 <native:text class="text-red-600">{{ $error }}</native:text>

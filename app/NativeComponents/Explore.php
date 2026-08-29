@@ -17,7 +17,28 @@ class Explore extends NativeComponent
 
     const FALLBACK_LONGITUDE = 46.6753;
 
-    public string $description = '';
+    /**
+     * Quick-pick reasons per service type — tapped instead of typed.
+     *
+     * @var array<string, list<string>>
+     */
+    const REASONS = [
+        'tire_exchange' => ['Flat tire', 'Blown tire', "Won't hold air", 'Spare needed'],
+        'emergency_tow' => ["Won't start", 'Overheated', 'Accident', 'Stuck / stranded'],
+    ];
+
+    /** Budget presets shown as a button group; null means "no preference". */
+    const BUDGET_LABELS = ['Any price', '~$40', '~$60', '$80+'];
+
+    /** @var list<int|null> */
+    const BUDGET_VALUES = [null, 40, 60, 80];
+
+    /** Null until the customer taps Tire Exchange or Emergency Tow. */
+    public ?string $serviceType = null;
+
+    public int $reasonIndex = 0;
+
+    public int $budgetIndex = 0;
 
     public bool $creating = false;
 
@@ -38,22 +59,39 @@ class Explore extends NativeComponent
         }
     }
 
-    public function requestTireExchange(): void
+    public function chooseTireExchange(): void
     {
-        $this->createRequest('tire_exchange');
+        $this->serviceType = 'tire_exchange';
+        $this->reasonIndex = 0;
+        $this->error = null;
     }
 
-    public function requestEmergencyTow(): void
+    public function chooseEmergencyTow(): void
     {
-        $this->createRequest('emergency_tow');
+        $this->serviceType = 'emergency_tow';
+        $this->reasonIndex = 0;
+        $this->error = null;
     }
 
-    protected function createRequest(string $serviceType): void
+    public function changeServiceType(): void
     {
+        $this->serviceType = null;
+    }
+
+    public function submit(): void
+    {
+        if ($this->serviceType === null) {
+            return;
+        }
+
         $this->creating = true;
         $this->error = null;
 
-        Geolocation::getCurrentPosition()->locationReceived(function ($event) use ($serviceType) {
+        $serviceType = $this->serviceType;
+        $description = self::REASONS[$serviceType][$this->reasonIndex] ?? null;
+        $budget = self::BUDGET_VALUES[$this->budgetIndex] ?? null;
+
+        Geolocation::getCurrentPosition()->locationReceived(function ($event) use ($serviceType, $description, $budget) {
             $latitude = $event->success ? $event->latitude : self::FALLBACK_LATITUDE;
             $longitude = $event->success ? $event->longitude : self::FALLBACK_LONGITUDE;
 
@@ -61,7 +99,8 @@ class Explore extends NativeComponent
                 'service_type' => $serviceType,
                 'pickup_latitude' => $latitude,
                 'pickup_longitude' => $longitude,
-                'description' => $this->description !== '' ? $this->description : null,
+                'description' => $description,
+                'budget' => $budget,
             ]);
 
             $this->creating = false;
@@ -78,6 +117,9 @@ class Explore extends NativeComponent
 
     public function render(): View
     {
-        return view('native.explore');
+        return view('native.explore', [
+            'reasons' => $this->serviceType !== null ? self::REASONS[$this->serviceType] : [],
+            'budgetLabels' => self::BUDGET_LABELS,
+        ]);
     }
 }

@@ -15,15 +15,22 @@ class RequestOffers extends NativeComponent
 
     public string $serviceType = '';
 
+    public ?int $budget = null;
+
     public array $offers = [];
 
     public array $nearbyProviders = [];
 
     public bool $loading = true;
 
+    /** Ticks up every poll while pending, so the wait visibly feels live. */
+    public int $secondsWaiting = 0;
+
     public ?string $error = null;
 
     public ?int $acceptingOfferId = null;
+
+    public bool $cancelling = false;
 
     public function mount(): void
     {
@@ -52,7 +59,12 @@ class RequestOffers extends NativeComponent
 
         $this->status = $result['data']['status'];
         $this->serviceType = $result['data']['service_type'];
+        $this->budget = $result['data']['budget'] ?? null;
         $this->offers = $result['data']['offers'] ?? [];
+
+        if ($this->status === 'pending') {
+            $this->secondsWaiting += 4;
+        }
 
         if ($this->status === 'accepted') {
             $this->navigate('/app/tracking/'.$this->requestId);
@@ -83,6 +95,15 @@ class RequestOffers extends NativeComponent
         }
 
         $this->navigate('/app/tracking/'.$this->requestId);
+    }
+
+    public function cancel(): void
+    {
+        $this->cancelling = true;
+
+        app(MarketplaceApi::class)->cancelRequest($this->requestId);
+
+        $this->replace('/app/explore');
     }
 
     public function render(): View
