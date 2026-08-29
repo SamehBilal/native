@@ -180,12 +180,16 @@ class MarketplaceApi
      */
     protected function storeSession(array $data): ?string
     {
-        $tokenSaved = SecureStorage::set('auth_token', $data['token']);
-        $userSaved = SecureStorage::set('auth_user', json_encode($data['user']));
+        $tokenFailure = $this->setSecure('auth_token', $data['token']);
 
-        if (! $tokenSaved || ! $userSaved) {
-            return 'Signed in, but this device rejected saving your session (SecureStorage write failed). '.
-                'If you are using an emulator, make sure a screen lock (PIN or pattern) is set, then try again.';
+        if ($tokenFailure !== null) {
+            return "Signed in, but this device rejected saving your session: {$tokenFailure}";
+        }
+
+        $userFailure = $this->setSecure('auth_user', json_encode($data['user']));
+
+        if ($userFailure !== null) {
+            return "Signed in, but this device rejected saving your session: {$userFailure}";
         }
 
         $readBack = SecureStorage::read('auth_token');
@@ -201,6 +205,36 @@ class MarketplaceApi
                 .($readBack->code ? " [{$readBack->code}]" : '')
                 .($readBack->message ? ": {$readBack->message}" : '').'.',
         };
+    }
+
+    /**
+     * Write a value through the native bridge directly (rather than the
+     * SecureStorage facade) so a failure carries the bridge's own raw
+     * response instead of a bare boolean — the facade's set() collapses
+     * every failure mode (missing bridge, bad JSON, {"success": false},
+     * an exception on the native side) into the same `false`.
+     *
+     * @return string|null A diagnostic describing the failure, or null on success.
+     */
+    protected function setSecure(string $key, string $value): ?string
+    {
+        if (! function_exists('nativephp_call')) {
+            return 'the native storage bridge is unavailable in this build (nativephp_call is not defined).';
+        }
+
+        $raw = nativephp_call('SecureStorage.Set', json_encode(['key' => $key, 'value' => $value]));
+
+        if (! $raw) {
+            return 'the device returned no response for SecureStorage.Set.';
+        }
+
+        $decoded = json_decode($raw, true);
+
+        if (! is_array($decoded) || ($decoded['success'] ?? false) !== true) {
+            return "the device responded with: {$raw}";
+        }
+
+        return null;
     }
 
     protected function client(bool $authenticated): PendingRequest
