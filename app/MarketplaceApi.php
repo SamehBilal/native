@@ -3,22 +3,37 @@
 namespace App;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Native\Mobile\Facades\SecureStorage;
 
 /**
  * Thin HTTP client the native screens use to talk to the marketplace
- * backend. Wraps the bearer token in SecureStorage and normalizes every
- * response into a simple ['ok' => bool, ...] shape so Blade views never
- * have to deal with HTTP client internals directly.
+ * backend. Persists the bearer token in the app's own database-backed
+ * cache (not the device Keychain/Keystore, which has proven unreliable
+ * across NativePHP builds/emulators) and normalizes every response into
+ * a simple ['ok' => bool, ...] shape so Blade views never have to deal
+ * with HTTP client internals directly.
  *
  * @phpstan-type ApiResult array{ok: bool, status: int, data: array<string, mixed>, message: string|null}
  */
 class MarketplaceApi
 {
+    /**
+     * Demo accounts a login keyword maps onto. There is no real
+     * authentication here by design: typing "customer" or "provider"
+     * (anywhere in the field, case-insensitive) logs in as the matching
+     * seeded demo account. See MarketplaceDemoSeeder for these users.
+     *
+     * @var array<string, array{email: string, password: string}>
+     */
+    protected const DEMO_ACCOUNTS = [
+        'provider' => ['email' => 'provider1@example.com', 'password' => 'password'],
+        'customer' => ['email' => 'customer@example.com', 'password' => 'password'],
+    ];
+
     public function token(): ?string
     {
-        return SecureStorage::get('auth_token');
+        return Cache::get('auth_token');
     }
 
     public function isLoggedIn(): bool
@@ -28,14 +43,36 @@ class MarketplaceApi
 
     public function currentUser(): ?array
     {
-        $cached = SecureStorage::get('auth_user');
-
-        return $cached ? json_decode($cached, true) : null;
+        return Cache::get('auth_user');
     }
 
     public function isProvider(): bool
     {
         return ($this->currentUser()['role'] ?? null) === 'provider';
+    }
+
+    /**
+     * Log in as whichever demo account the keyword names, skipping real
+     * credential entry entirely. Returns a validation-style error when the
+     * keyword doesn't match either demo account.
+     */
+    public function loginAsDemo(string $keyword): array
+    {
+        $keyword = strtolower(trim($keyword));
+
+        $account = collect(self::DEMO_ACCOUNTS)
+            ->first(fn (array $account, string $role) => str_contains($keyword, $role));
+
+        if ($account === null) {
+            return [
+                'ok' => false,
+                'status' => 422,
+                'data' => [],
+                'message' => 'Type "customer" or "provider" to continue.',
+            ];
+        }
+
+        return $this->login($account['email'], $account['password']);
     }
 
     public function login(string $email, string $password): array
@@ -84,8 +121,8 @@ class MarketplaceApi
     {
         $this->request('post', '/logout');
 
-        SecureStorage::delete('auth_token');
-        SecureStorage::delete('auth_user');
+        Cache::forget('auth_token');
+        Cache::forget('auth_user');
     }
 
     public function me(): array
@@ -93,7 +130,7 @@ class MarketplaceApi
         $result = $this->request('get', '/me');
 
         if ($result['ok']) {
-            SecureStorage::set('auth_user', json_encode($result['data']));
+            Cache::forever('auth_user', $result['data']);
         }
 
         return $result;
@@ -171,70 +208,22 @@ class MarketplaceApi
     }
 
     /**
-     * Persist the session, then read it straight back through SecureStorage
-     * to confirm it actually round-tripped rather than trusting a bare
-     * success flag from the write.
+     * Persist the session, then read it straight back to confirm it
+     * actually round-tripped rather than trusting the write alone.
      *
      * @param  array{token: string, user: array<string, mixed>}  $data
      * @return string|null A human-readable failure reason, or null on success.
      */
     protected function storeSession(array $data): ?string
     {
-        $tokenFailure = $this->setSecure('auth_token', $data['token']);
+        Cache::forever('auth_token', $data['token']);
+        Cache::forever('auth_user', $data['user']);
 
-        if ($tokenFailure !== null) {
-            return "Signed in, but this device rejected saving your session: {$tokenFailure}";
-        }
-
-        $userFailure = $this->setSecure('auth_user', json_encode($data['user']));
-
-        if ($userFailure !== null) {
-            return "Signed in, but this device rejected saving your session: {$userFailure}";
-        }
-
-        $readBack = SecureStorage::read('auth_token');
-
-        if ($readBack->found() && $readBack->value === $data['token']) {
+        if ($this->token() === $data['token']) {
             return null;
         }
 
-        return match (true) {
-            $readBack->unavailable() => 'Signed in, but your device is locked and cannot decrypt the saved session yet. Unlock your device and try again.',
-            $readBack->missing() => 'Signed in, but the session was not actually saved on this device. Please try again.',
-            default => 'Signed in, but could not verify the saved session'
-                .($readBack->code ? " [{$readBack->code}]" : '')
-                .($readBack->message ? ": {$readBack->message}" : '').'.',
-        };
-    }
-
-    /**
-     * Write a value through the native bridge directly (rather than the
-     * SecureStorage facade) so a failure carries the bridge's own raw
-     * response instead of a bare boolean — the facade's set() collapses
-     * every failure mode (missing bridge, bad JSON, {"success": false},
-     * an exception on the native side) into the same `false`.
-     *
-     * @return string|null A diagnostic describing the failure, or null on success.
-     */
-    protected function setSecure(string $key, string $value): ?string
-    {
-        if (! function_exists('nativephp_call')) {
-            return 'the native storage bridge is unavailable in this build (nativephp_call is not defined).';
-        }
-
-        $raw = nativephp_call('SecureStorage.Set', json_encode(['key' => $key, 'value' => $value]));
-
-        if (! $raw) {
-            return 'the device returned no response for SecureStorage.Set.';
-        }
-
-        $decoded = json_decode($raw, true);
-
-        if (! is_array($decoded) || ($decoded['success'] ?? false) !== true) {
-            return "the device responded with: {$raw}";
-        }
-
-        return null;
+        return 'Signed in, but this device could not save your session. Please try again.';
     }
 
     protected function client(bool $authenticated): PendingRequest

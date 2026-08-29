@@ -8,9 +8,11 @@ use Native\Mobile\Edge\NativeComponent;
 
 class Login extends NativeComponent
 {
+    /**
+     * Type "customer" or "provider" to sign in as that demo account.
+     * There is no real credential check — see MarketplaceApi::loginAsDemo().
+     */
     public string $email = '';
-
-    public string $password = '';
 
     public bool $loading = false;
 
@@ -27,14 +29,14 @@ class Login extends NativeComponent
     {
         $this->error = null;
 
-        if ($this->email === '' || $this->password === '') {
-            $this->error = 'Enter your email and password.';
+        if ($this->email === '') {
+            $this->error = 'Type "customer" or "provider" to continue.';
 
             return;
         }
 
         $this->loading = true;
-        $result = app(MarketplaceApi::class)->login($this->email, $this->password);
+        $result = app(MarketplaceApi::class)->loginAsDemo($this->email);
         $this->loading = false;
 
         if (! $result['ok']) {
