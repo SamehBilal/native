@@ -2,27 +2,21 @@
 
 <native:scroll-view class="w-full h-full bg-gray-50">
     <native:column class="w-full gap-4 p-6">
-        <native:column class="w-full items-center p-4 bg-white rounded-xl gap-2">
-            @if ($radar)
-                <native:stack class="w-64 h-64 bg-blue-50 rounded-xl">
-                    <native:line
-                        from="{{ $radar['customer']['x'] }},{{ $radar['customer']['y'] }}"
-                        to="{{ $radar['provider']['x'] }},{{ $radar['provider']['y'] }}"
-                        class="border-gray-400"
-                    />
-                    <native:circle left="{{ $radar['customer']['x'] - 8 }}" top="{{ $radar['customer']['y'] - 8 }}" class="w-4 h-4 bg-blue-500" />
-                    <native:circle left="{{ $radar['provider']['x'] - 8 }}" top="{{ $radar['provider']['y'] - 8 }}" class="w-4 h-4 bg-orange-500" />
-                </native:stack>
-                <native:row class="gap-4 mt-1">
+        <native:column class="w-full items-center bg-white rounded-xl overflow-hidden">
+            @if ($mapHtml !== '')
+                <native:webview :html="$mapHtml" javascript class="w-full h-72" />
+                <native:row class="gap-4 p-3">
                     <native:text class="text-blue-500">● You</native:text>
                     <native:text class="text-orange-500">● Provider</native:text>
+                    @if ($distanceKm !== null)
+                        <native:text class="text-gray-500">{{ $distanceKm }} km apart</native:text>
+                    @endif
                 </native:row>
-                @if ($distanceKm !== null)
-                    <native:text class="text-gray-500">{{ $distanceKm }} km apart</native:text>
-                @endif
             @else
-                <native:activity-indicator />
-                <native:text class="text-gray-500">Waiting for both locations…</native:text>
+                <native:column class="w-full h-72 items-center justify-center gap-2">
+                    <native:activity-indicator />
+                    <native:text class="text-gray-500">Loading map…</native:text>
+                </native:column>
             @endif
         </native:column>
 
@@ -42,8 +36,12 @@
 
         <native:column class="w-full gap-2">
             @forelse ($messages as $message)
-                <native:column key="msg-{{ $message['id'] }}" class="w-full p-3 bg-white rounded-xl">
-                    <native:text>{{ $message['body'] }}</native:text>
+                @php $fromMe = $message['sender_role'] === ($isProvider ? 'provider' : 'customer'); @endphp
+                <native:column
+                    key="msg-{{ $message['id'] }}"
+                    class="p-3 rounded-xl {{ $fromMe ? 'bg-blue-600 items-end' : 'bg-white items-start' }}"
+                >
+                    <native:text class="{{ $fromMe ? 'text-white' : 'text-gray-900' }}">{{ $message['body'] }}</native:text>
                 </native:column>
             @empty
                 <native:text class="text-gray-500">No messages yet.</native:text>

@@ -2,6 +2,7 @@
 
 namespace App;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -26,14 +27,38 @@ class MarketplaceApi
 
     /**
      * Canned providers used to populate "nearby providers" and to author
-     * the offers that automatically arrive on a new request.
+     * the offers that automatically arrive on a new request. Each only
+     * offers (and only bids on) the service types listed, same as a real
+     * provider profile would.
      *
-     * @var list<array{id: int, name: string, vehicle_info: string, rating: float, phone: string}>
+     * @var list<array{id: int, name: string, vehicle_info: string, rating: float, phone: string, services: list<string>}>
      */
     protected const DEMO_PROVIDERS = [
-        ['id' => 101, 'name' => "Sam's Mobile Tires", 'vehicle_info' => 'Flatbed Truck - RA-204', 'rating' => 4.8, 'phone' => '+1-555-0201'],
-        ['id' => 102, 'name' => 'QuickFix Roadside', 'vehicle_info' => 'Service Van - RA-315', 'rating' => 4.6, 'phone' => '+1-555-0202'],
-        ['id' => 103, 'name' => 'Desert Rescue Towing', 'vehicle_info' => 'Tow Truck - RA-118', 'rating' => 4.9, 'phone' => '+1-555-0203'],
+        ['id' => 101, 'name' => "Sam's Mobile Tires", 'vehicle_info' => 'Flatbed Truck - RA-204', 'rating' => 4.8, 'phone' => '+1-555-0201', 'services' => ['tire_exchange']],
+        ['id' => 102, 'name' => 'QuickFix Roadside', 'vehicle_info' => 'Service Van - RA-315', 'rating' => 4.6, 'phone' => '+1-555-0202', 'services' => ['tire_exchange', 'emergency_tow']],
+        ['id' => 103, 'name' => 'Desert Rescue Towing', 'vehicle_info' => 'Tow Truck - RA-118', 'rating' => 4.9, 'phone' => '+1-555-0203', 'services' => ['emergency_tow']],
+        ['id' => 104, 'name' => 'Rapid Response Auto', 'vehicle_info' => 'Tow Truck - RA-402', 'rating' => 4.7, 'phone' => '+1-555-0204', 'services' => ['emergency_tow', 'tire_exchange']],
+        ['id' => 105, 'name' => "Layla's Tire Service", 'vehicle_info' => 'Pickup Truck - RA-556', 'rating' => 4.95, 'phone' => '+1-555-0205', 'services' => ['tire_exchange']],
+        ['id' => 106, 'name' => '24/7 Highway Rescue', 'vehicle_info' => 'Heavy Tow Truck - RA-731', 'rating' => 4.5, 'phone' => '+1-555-0206', 'services' => ['emergency_tow']],
+    ];
+
+    /**
+     * Request IDs at or above this are seeded walk-ins (see WALK_IN_REQUESTS)
+     * rather than something a demo customer created — used to trigger the
+     * "customer accepts immediately" behavior in submitOffer().
+     */
+    protected const WALK_IN_ID_START = 9000;
+
+    /**
+     * Realistic walk-in requests already waiting when the provider dashboard
+     * is first opened, so there's more than one scenario to demo.
+     *
+     * @var list<array{id: int, name: string, service_type: string, description: string, distance_km: float, offset: array{0: float, 1: float}}>
+     */
+    protected const WALK_IN_REQUESTS = [
+        ['id' => 9001, 'name' => 'Dana Cole', 'service_type' => 'tire_exchange', 'description' => 'Flat rear tire on the King Fahd Road shoulder.', 'distance_km' => 2.2, 'offset' => [0.010, 0.006]],
+        ['id' => 9002, 'name' => 'Marcus Webb', 'service_type' => 'emergency_tow', 'description' => "Car won't start after overheating near the Al Olaya exit ramp.", 'distance_km' => 4.5, 'offset' => [-0.018, 0.014]],
+        ['id' => 9003, 'name' => 'Priya Nair', 'service_type' => 'tire_exchange', 'description' => 'Blown tire in a parking garage — need someone with a jack.', 'distance_km' => 1.1, 'offset' => [0.004, -0.008]],
     ];
 
     public function token(): ?string
@@ -129,7 +154,7 @@ class MarketplaceApi
     {
         $id = $this->nextId('request');
         $now = microtime(true);
-        $providers = collect(self::DEMO_PROVIDERS)->shuffle()->take(2)->values();
+        $providers = $this->providersFor($data['service_type'])->shuffle();
 
         $requests = $this->requests();
         $requests[$id] = [
@@ -143,7 +168,10 @@ class MarketplaceApi
             'created_at' => $now,
             'accepted_provider' => null,
             'tracking' => null,
-            'offers' => $providers->map(fn (array $provider, int $index) => $this->makeOffer(
+            // Every matching provider bids, arriving staggered ~5s apart so
+            // offers visibly trickle in as the customer polls, instead of
+            // showing up all at once.
+            'offers' => $providers->values()->map(fn (array $provider, int $index) => $this->makeOffer(
                 provider: $provider,
                 serviceType: $data['service_type'],
                 revealAt: $now + 4 + $index * 5,
@@ -152,6 +180,14 @@ class MarketplaceApi
         $this->saveRequests($requests);
 
         return $this->ok(['id' => $id]);
+    }
+
+    /**
+     * @return Collection<int, array{id: int, name: string, vehicle_info: string, rating: float, phone: string, services: list<string>}>
+     */
+    protected function providersFor(string $serviceType): Collection
+    {
+        return collect(self::DEMO_PROVIDERS)->filter(fn (array $provider) => in_array($serviceType, $provider['services'], true));
     }
 
     public function showServiceRequest(int $requestId): array
@@ -173,7 +209,11 @@ class MarketplaceApi
 
     public function nearbyProviders(int $requestId): array
     {
-        return $this->ok(collect(self::DEMO_PROVIDERS)
+        $request = $this->requests()[$requestId] ?? null;
+        $providers = $request !== null ? $this->providersFor($request['service_type']) : collect(self::DEMO_PROVIDERS);
+
+        return $this->ok($providers
+            ->values()
             ->map(fn (array $provider, int $index) => [
                 'id' => $provider['id'],
                 'name' => $provider['name'],
@@ -197,24 +237,33 @@ class MarketplaceApi
                 continue;
             }
 
-            foreach ($request['offers'] as $index => $offer) {
-                $requests[$id]['offers'][$index]['status'] = $index === $offerIndex ? 'accepted' : 'rejected';
-            }
-
-            $accepted = $request['offers'][$offerIndex];
-            $requests[$id]['status'] = 'accepted';
-            $requests[$id]['accepted_provider'] = $accepted['provider'];
-            $requests[$id]['tracking'] = [
-                'provider_latitude' => $request['pickup_latitude'] + 0.02,
-                'provider_longitude' => $request['pickup_longitude'] + 0.02,
-            ];
-
+            $this->applyAcceptance($requests, $id, $offerIndex);
             $this->saveRequests($requests);
 
             return $this->ok([]);
         }
 
         return $this->fail(404, 'Offer not found.');
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $requests  Passed by reference and mutated in place.
+     */
+    protected function applyAcceptance(array &$requests, int $requestId, int $offerIndex): void
+    {
+        $request = $requests[$requestId];
+
+        foreach ($request['offers'] as $index => $offer) {
+            $requests[$requestId]['offers'][$index]['status'] = $index === $offerIndex ? 'accepted' : 'rejected';
+        }
+
+        $accepted = $request['offers'][$offerIndex];
+        $requests[$requestId]['status'] = 'accepted';
+        $requests[$requestId]['accepted_provider'] = $accepted['provider'];
+        $requests[$requestId]['tracking'] = [
+            'provider_latitude' => $request['pickup_latitude'] + 0.02,
+            'provider_longitude' => $request['pickup_longitude'] + 0.02,
+        ];
     }
 
     /**
@@ -293,7 +342,7 @@ class MarketplaceApi
 
     public function providerRequests(): array
     {
-        $this->seedWalkInRequestIfEmpty();
+        $this->seedWalkInRequestsIfEmpty();
         $providerId = $this->currentUser()['id'] ?? null;
 
         return $this->ok(collect($this->requests())
@@ -303,7 +352,7 @@ class MarketplaceApi
                 'id' => $request['id'],
                 'service_type' => $request['service_type'],
                 'description' => $request['description'],
-                'distance_km' => round(1.5 + ($request['id'] % 5) * 0.7, 1),
+                'distance_km' => $request['distance_km'] ?? round(1.5 + ($request['id'] % 5) * 0.7, 1),
             ])
             ->values()
             ->all());
@@ -337,6 +386,7 @@ class MarketplaceApi
         }
 
         $user = $this->currentUser() ?? self::DEMO_USERS['provider'];
+        $offerIndex = count($request['offers']);
 
         $requests[$requestId]['offers'][] = [
             'id' => $this->nextId('offer'),
@@ -353,6 +403,14 @@ class MarketplaceApi
             'status' => 'pending',
             'reveal_at' => null,
         ];
+
+        // The seeded walk-in requests (see WALK_IN_REQUESTS) simulate a
+        // stranded customer who accepts the first bid immediately, so a
+        // provider can demo the full offer → tracking → chat flow solo,
+        // without switching accounts to accept it as the customer.
+        if ($requestId >= self::WALK_IN_ID_START) {
+            $this->applyAcceptance($requests, $requestId, $offerIndex);
+        }
 
         $this->saveRequests($requests);
 
@@ -434,30 +492,35 @@ class MarketplaceApi
     }
 
     /**
-     * Seeds one example pending request so the provider dashboard is never
-     * empty before any customer has created a real one in this demo run.
+     * Seeds a handful of realistic pending requests — different service
+     * types, descriptions, and distances — so the provider dashboard has
+     * more than one scenario to demo before any customer has created a
+     * real request in this run.
      */
-    protected function seedWalkInRequestIfEmpty(): void
+    protected function seedWalkInRequestsIfEmpty(): void
     {
         if ($this->requests() !== []) {
             return;
         }
 
-        $this->saveRequests([
-            9001 => [
-                'id' => 9001,
-                'customer' => ['id' => 999, 'name' => 'Dana Cole', 'phone' => '+1-555-0299', 'role' => 'customer'],
-                'service_type' => 'tire_exchange',
-                'description' => 'Flat rear tire on the highway shoulder.',
-                'pickup_latitude' => 24.7136,
-                'pickup_longitude' => 46.6753,
+        [$baseLat, $baseLng] = [24.7136, 46.6753];
+
+        $this->saveRequests(collect(self::WALK_IN_REQUESTS)->mapWithKeys(fn (array $scenario) => [
+            $scenario['id'] => [
+                'id' => $scenario['id'],
+                'customer' => ['id' => 900 + $scenario['id'], 'name' => $scenario['name'], 'phone' => '+1-555-02'.$scenario['id'], 'role' => 'customer'],
+                'service_type' => $scenario['service_type'],
+                'description' => $scenario['description'],
+                'distance_km' => $scenario['distance_km'],
+                'pickup_latitude' => $baseLat + $scenario['offset'][0],
+                'pickup_longitude' => $baseLng + $scenario['offset'][1],
                 'status' => 'pending',
                 'created_at' => microtime(true),
                 'accepted_provider' => null,
                 'tracking' => null,
                 'offers' => [],
             ],
-        ]);
+        ])->all());
     }
 
     /**
