@@ -5,7 +5,7 @@
     <native:bottom-nav-item id="profile" label="Profile" url="/app/profile" icon="person" />
 </native:bottom-nav>
 
-<native:column class="w-full h-full items-center gap-4 p-6 bg-theme-background">
+<native:column class="w-full h-full items-center gap-4 p-6 bg-gray-50">
     <native:text-input
         placeholder="Describe the problem (optional)"
         native:model="description"
@@ -13,23 +13,23 @@
     />
 
     @if ($error)
-        <native:text class="text-theme-error">{{ $error }}</native:text>
+        <native:text class="text-red-600">{{ $error }}</native:text>
     @endif
 
     <native:column class="w-full gap-4 mt-4">
-        <native:pressable @tap="requestTireExchange" class="w-full p-4 bg-theme-primary/10 rounded-xl gap-1">
+        <native:pressable @tap="requestTireExchange" class="w-full p-4 bg-blue-50 rounded-xl gap-1">
             <native:text class="text-lg font-bold">Tire Exchange</native:text>
-            <native:text class="text-theme-outline">Flat or damaged tire — find the nearest available provider.</native:text>
+            <native:text class="text-gray-500">Flat or damaged tire — find the nearest available provider.</native:text>
         </native:pressable>
 
-        <native:pressable @tap="requestEmergencyTow" class="w-full p-4 bg-theme-primary/10 rounded-xl gap-1">
+        <native:pressable @tap="requestEmergencyTow" class="w-full p-4 bg-blue-50 rounded-xl gap-1">
             <native:text class="text-lg font-bold">Emergency Tow</native:text>
-            <native:text class="text-theme-outline">Car won't move — get towed to the nearest maintenance center.</native:text>
+            <native:text class="text-gray-500">Car won't move — get towed to the nearest maintenance center.</native:text>
         </native:pressable>
     </native:column>
 
     @if ($creating)
         <native:activity-indicator class="mt-4" />
-        <native:text class="text-theme-outline">Finding your location and sending your request…</native:text>
+        <native:text class="text-gray-500">Finding your location and sending your request…</native:text>
     @endif
 </native:column>

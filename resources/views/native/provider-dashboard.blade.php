@@ -6,26 +6,26 @@
     <native:bottom-nav-item id="profile" label="Profile" url="/app/profile" icon="person" />
 </native:bottom-nav>
 
-<native:scroll-view class="w-full h-full bg-theme-background">
+<native:scroll-view class="w-full h-full bg-gray-50">
     <native:column class="w-full gap-3 p-6">
         @if ($loading)
             <native:activity-indicator />
         @elseif ($error)
-            <native:text class="text-theme-error">{{ $error }}</native:text>
+            <native:text class="text-red-600">{{ $error }}</native:text>
         @elseif (empty($requests))
-            <native:text class="text-theme-outline">No matching requests nearby right now.</native:text>
+            <native:text class="text-gray-500">No matching requests nearby right now.</native:text>
         @else
             @foreach ($requests as $request)
                 <native:pressable
                     key="request-{{ $request['id'] }}"
                     @tap="viewRequest({{ $request['id'] }})"
-                    class="w-full p-4 bg-theme-surface rounded-xl gap-1"
+                    class="w-full p-4 bg-white rounded-xl gap-1"
                 >
                     <native:text class="font-bold capitalize">{{ str_replace('_', ' ', $request['service_type']) }}</native:text>
                     @if (!empty($request['description']))
-                        <native:text class="text-theme-outline">{{ $request['description'] }}</native:text>
+                        <native:text class="text-gray-500">{{ $request['description'] }}</native:text>
                     @endif
-                    <native:text class="text-theme-primary">{{ $request['distance_km'] }} km away</native:text>
+                    <native:text class="text-blue-600">{{ $request['distance_km'] }} km away</native:text>
                 </native:pressable>
             @endforeach
         @endif

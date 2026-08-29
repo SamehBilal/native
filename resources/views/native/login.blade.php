@@ -1,6 +1,6 @@
-<native:column class="w-full h-full items-center justify-center gap-4 p-6 bg-theme-background">
-    <native:text class="text-2xl font-bold text-theme-primary">Road Assist</native:text>
-    <native:text class="text-base text-theme-outline">Sign in to request or provide roadside help</native:text>
+<native:column class="w-full h-full items-center justify-center gap-4 p-6 bg-gray-50">
+    <native:text class="text-2xl font-bold text-blue-600">Road Assist</native:text>
+    <native:text class="text-base text-gray-500">Sign in to request or provide roadside help</native:text>
 
     <native:column class="w-full gap-3 mt-4">
         <native:text-input
@@ -17,7 +17,7 @@
         />
 
         @if ($error)
-            <native:text class="text-theme-error">{{ $error }}</native:text>
+            <native:text class="text-red-600">{{ $error }}</native:text>
         @endif
 
         <native:button
@@ -28,7 +28,7 @@
         />
 
         <native:pressable @tap="goToRegister" class="items-center mt-2">
-            <native:text class="text-theme-primary">New here? Create an account</native:text>
+            <native:text class="text-blue-600">New here? Create an account</native:text>
         </native:pressable>
     </native:column>
 </native:column>

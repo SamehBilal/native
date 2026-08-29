@@ -1,6 +1,6 @@
-<native:scroll-view class="w-full h-full bg-theme-background">
+<native:scroll-view class="w-full h-full bg-gray-50">
     <native:column class="w-full items-center gap-4 p-6">
-        <native:text class="text-2xl font-bold text-theme-primary">Create Account</native:text>
+        <native:text class="text-2xl font-bold text-blue-600">Create Account</native:text>
 
         <native:row class="w-full gap-2">
             <native:button
@@ -24,20 +24,20 @@
             <native:text-input placeholder="Phone (optional)" native:model="phone" class="w-full" />
 
             @if ($role === 'provider')
-                <native:text class="text-theme-outline mt-2">What can you help with?</native:text>
+                <native:text class="text-gray-500 mt-2">What can you help with?</native:text>
                 <native:toggle label="Tire exchange" native:model="offersTireExchange" />
                 <native:toggle label="Emergency tow" native:model="offersEmergencyTow" />
                 <native:text-input placeholder="Vehicle info (e.g. Tow Truck - ABC-123)" native:model="vehicleInfo" class="w-full" />
 
                 @if ($latitude === null)
-                    <native:text class="text-theme-outline">Fetching your current location…</native:text>
+                    <native:text class="text-gray-500">Fetching your current location…</native:text>
                 @else
-                    <native:text class="text-theme-outline">Location captured ✓</native:text>
+                    <native:text class="text-gray-500">Location captured ✓</native:text>
                 @endif
             @endif
 
             @if ($error)
-                <native:text class="text-theme-error">{{ $error }}</native:text>
+                <native:text class="text-red-600">{{ $error }}</native:text>
             @endif
 
             <native:button
@@ -48,7 +48,7 @@
             />
 
             <native:pressable @tap="goToLogin" class="items-center mt-2">
-                <native:text class="text-theme-primary">Already have an account? Sign in</native:text>
+                <native:text class="text-blue-600">Already have an account? Sign in</native:text>
             </native:pressable>
         </native:column>
     </native:column>
