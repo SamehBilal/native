@@ -6,7 +6,7 @@
 </native:bottom-nav>
 
 <native:column class="w-full h-full items-center gap-4 p-6 bg-gray-50">
-    <native:text-input
+    <native:outlined-text-input
         placeholder="Describe the problem (optional)"
         native:model="description"
         class="w-full"

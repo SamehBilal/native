@@ -18,7 +18,8 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
-        "nativephp/mobile": "^4.2"
+        "nativephp/mobile": "^4.2",
+        "nativephp/mobile-ui": "^0.4"
     },
     "require-dev": {
         "larastan/larastan": "^3.9",

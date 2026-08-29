@@ -3,13 +3,13 @@
     <native:text class="text-base text-gray-500">Sign in to request or provide roadside help</native:text>
 
     <native:column class="w-full gap-3 mt-4">
-        <native:text-input
+        <native:outlined-text-input
             placeholder="Email"
-            keyboard-type="email"
+            keyboard="email"
             native:model="email"
             class="w-full"
         />
-        <native:text-input
+        <native:outlined-text-input
             placeholder="Password"
             secure
             native:model="password"

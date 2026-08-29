@@ -58,7 +58,7 @@
 
 <native:bottom-bar>
     <native:row class="w-full gap-2 items-center">
-        <native:text-input placeholder="Message…" native:model="newMessage" class="flex-1" />
+        <native:outlined-text-input placeholder="Message…" native:model="newMessage" class="flex-1" />
         <native:button label="Send" :disabled="$sending" @tap="sendMessage" />
     </native:row>
 </native:bottom-bar>

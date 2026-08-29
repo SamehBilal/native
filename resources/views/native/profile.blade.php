@@ -26,10 +26,10 @@
                 <native:text class="text-lg capitalize">{{ $role }}</native:text>
 
                 <native:text class="text-gray-500 mt-2">Name</native:text>
-                <native:text-input native:model="name" class="w-full" />
+                <native:outlined-text-input native:model="name" class="w-full" />
 
                 <native:text class="text-gray-500 mt-2">Phone</native:text>
-                <native:text-input native:model="phone" class="w-full" />
+                <native:outlined-text-input native:model="phone" class="w-full" />
 
                 @if ($error)
                     <native:text class="text-red-600">{{ $error }}</native:text>
@@ -45,7 +45,7 @@
                     class="w-full mt-2"
                 />
 
-                <native:button label="Log Out" color="#DC2626" @tap="logout" class="w-full mt-4" />
+                <native:button label="Log Out" variant="destructive" @tap="logout" class="w-full mt-4" />
             </native:column>
         @endif
     </native:column>
