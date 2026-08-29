@@ -35,8 +35,4 @@ return [
         ],
     ],
 
-    'marketplace' => [
-        'url' => env('MARKETPLACE_API_URL', env('APP_URL', 'http://localhost')),
-    ],
-
 ];
