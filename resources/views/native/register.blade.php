@@ -1,6 +1,6 @@
 <native:scroll-view class="w-full h-full bg-gray-50">
     <native:column class="w-full items-center gap-4 p-6">
-        <native:text class="text-2xl font-bold text-blue-600">Create Account</native:text>
+        <native:text class="text-2xl font-bold text-gray-900 tracking-tight">Create Account</native:text>
 
         <native:row class="w-full gap-2">
             <native:button
@@ -48,7 +48,7 @@
             />
 
             <native:pressable @tap="goToLogin" class="items-center mt-2">
-                <native:text class="text-blue-600">Already have an account? Sign in</native:text>
+                <native:text class="text-gray-900 font-semibold underline">Already have an account? Sign in</native:text>
             </native:pressable>
         </native:column>
     </native:column>

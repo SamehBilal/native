@@ -16,14 +16,14 @@
         <native:text class="text-red-600">{{ $error }}</native:text>
     @endif
 
-    <native:column class="w-full gap-4 mt-4">
-        <native:pressable @tap="requestTireExchange" class="w-full p-4 bg-blue-50 rounded-xl gap-1">
-            <native:text class="text-lg font-bold">Tire Exchange</native:text>
+    <native:column class="w-full gap-3 mt-4">
+        <native:pressable @tap="requestTireExchange" class="w-full p-4 bg-white border border-gray-200 rounded-2xl gap-1">
+            <native:text class="text-lg font-bold text-gray-900">Tire Exchange</native:text>
             <native:text class="text-gray-500">Flat or damaged tire — find the nearest available provider.</native:text>
         </native:pressable>
 
-        <native:pressable @tap="requestEmergencyTow" class="w-full p-4 bg-blue-50 rounded-xl gap-1">
-            <native:text class="text-lg font-bold">Emergency Tow</native:text>
+        <native:pressable @tap="requestEmergencyTow" class="w-full p-4 bg-white border border-gray-200 rounded-2xl gap-1">
+            <native:text class="text-lg font-bold text-gray-900">Emergency Tow</native:text>
             <native:text class="text-gray-500">Car won't move — get towed to the nearest maintenance center.</native:text>
         </native:pressable>
     </native:column>

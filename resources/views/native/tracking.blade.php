@@ -2,7 +2,7 @@
 
 <native:scroll-view class="w-full h-full bg-gray-50">
     <native:column class="w-full gap-4 p-6">
-        <native:column class="w-full items-center bg-white rounded-xl overflow-hidden">
+        <native:column class="w-full items-center bg-white border border-gray-200 rounded-2xl overflow-hidden">
             @if ($mapHtml !== '')
                 <native:webview :html="$mapHtml" javascript class="w-full h-72" />
                 <native:row class="gap-4 p-3">
@@ -20,9 +20,9 @@
             @endif
         </native:column>
 
-        <native:row class="w-full p-4 bg-white rounded-xl justify-between items-center">
+        <native:row class="w-full p-4 bg-white border border-gray-200 rounded-2xl justify-between items-center">
             <native:column>
-                <native:text class="font-bold">
+                <native:text class="font-bold text-gray-900">
                     {{ $isProvider ? ($customer['name'] ?? 'Customer') : ($provider['name'] ?? 'Provider') }}
                 </native:text>
                 <native:text class="text-gray-500">
@@ -32,14 +32,14 @@
             <native:button label="Call" @tap="call" />
         </native:row>
 
-        <native:text class="text-lg font-bold mt-2">Chat</native:text>
+        <native:text class="text-lg font-bold text-gray-900 mt-2">Chat</native:text>
 
         <native:column class="w-full gap-2">
             @forelse ($messages as $message)
                 @php $fromMe = $message['sender_role'] === ($isProvider ? 'provider' : 'customer'); @endphp
                 <native:column
                     key="msg-{{ $message['id'] }}"
-                    class="p-3 rounded-xl {{ $fromMe ? 'bg-blue-600 items-end' : 'bg-white items-start' }}"
+                    class="p-3 rounded-2xl {{ $fromMe ? 'bg-gray-900 items-end' : 'bg-white border border-gray-200 items-start' }}"
                 >
                     <native:text class="{{ $fromMe ? 'text-white' : 'text-gray-900' }}">{{ $message['body'] }}</native:text>
                 </native:column>

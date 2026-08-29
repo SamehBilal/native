@@ -19,13 +19,13 @@
                 <native:pressable
                     key="request-{{ $request['id'] }}"
                     @tap="viewRequest({{ $request['id'] }})"
-                    class="w-full p-4 bg-white rounded-xl gap-1"
+                    class="w-full p-4 bg-white border border-gray-200 rounded-2xl gap-1"
                 >
-                    <native:text class="font-bold capitalize">{{ str_replace('_', ' ', $request['service_type']) }}</native:text>
+                    <native:text class="font-bold capitalize text-gray-900">{{ str_replace('_', ' ', $request['service_type']) }}</native:text>
                     @if (!empty($request['description']))
                         <native:text class="text-gray-500">{{ $request['description'] }}</native:text>
                     @endif
-                    <native:text class="text-blue-600">{{ $request['distance_km'] }} km away</native:text>
+                    <native:text class="text-gray-900 font-semibold">{{ $request['distance_km'] }} km away</native:text>
                 </native:pressable>
             @endforeach
         @endif

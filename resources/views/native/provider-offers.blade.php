@@ -19,10 +19,10 @@
                 <native:pressable
                     key="myoffer-{{ $offer['id'] }}"
                     @tap="openTracking({{ $offer['service_request_id'] }})"
-                    class="w-full p-4 bg-white rounded-xl gap-1"
+                    class="w-full p-4 bg-white border border-gray-200 rounded-2xl gap-1"
                 >
                     <native:row class="justify-between">
-                        <native:text class="font-bold">${{ $offer['fee'] }} · {{ $offer['eta_minutes'] }} min</native:text>
+                        <native:text class="font-bold text-gray-900">${{ $offer['fee'] }} · {{ $offer['eta_minutes'] }} min</native:text>
                         <native:text class="capitalize text-gray-500">{{ $offer['status'] }}</native:text>
                     </native:row>
                 </native:pressable>
